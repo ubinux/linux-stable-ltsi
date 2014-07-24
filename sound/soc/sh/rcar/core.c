@@ -1042,11 +1042,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	for_each_rsnd_dai(rdai, priv, i) {
 		ret = rsnd_dai_call(probe, &rdai->playback, rdai);
 		if (ret)
-			return ret;
+			goto exit_snd_probe;
 
 		ret = rsnd_dai_call(probe, &rdai->capture, rdai);
 		if (ret)
-			return ret;
+			goto exit_snd_probe;
 	}
 
 	/*
@@ -1074,6 +1074,11 @@ static int rsnd_probe(struct platform_device *pdev)
 
 exit_snd_soc:
 	snd_soc_unregister_platform(dev);
+exit_snd_probe:
+	for_each_rsnd_dai(rdai, priv, i) {
+		rsnd_dai_call(remove, &rdai->playback, rdai);
+		rsnd_dai_call(remove, &rdai->capture, rdai);
+	}
 
 	return ret;
 }
@@ -1082,21 +1087,16 @@ static int rsnd_remove(struct platform_device *pdev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(&pdev->dev);
 	struct rsnd_dai *rdai;
-	int ret, i;
+	int ret = 0, i;
 
 	pm_runtime_disable(&pdev->dev);
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		ret = rsnd_dai_call(remove, &rdai->playback, rdai);
-		if (ret)
-			return ret;
-
-		ret = rsnd_dai_call(remove, &rdai->capture, rdai);
-		if (ret)
-			return ret;
+		ret |= rsnd_dai_call(remove, &rdai->playback, rdai);
+		ret |= rsnd_dai_call(remove, &rdai->capture, rdai);
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct platform_driver rsnd_driver = {
